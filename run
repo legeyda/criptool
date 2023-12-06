@@ -1,0 +1,26 @@
+#!/usr/bin/env sh
+set -eux
+
+main() {
+	assert_dir
+	for target in "$@"; do
+		"run_$target"
+	done
+}
+
+assert_dir() {
+	(test -f ./package.json && grep -q criptool ./package.json) || (
+		echo wrong dir
+		exit 1
+	)
+}
+
+run_clean() {
+	rm -rf build dist
+}
+
+run_debug() {
+	echo hello from debug
+}
+
+main "$@"

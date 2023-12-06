@@ -1,0 +1,9 @@
+{
+	"compilerOptions": {
+		"outDir": "./build/",
+		"noEmitOnError": true,
+		"target": "es5",
+		"watch": true,
+		"jsx": "react"
+	}
+}
