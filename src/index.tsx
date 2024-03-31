@@ -3,11 +3,17 @@ const ReactDOM = require('react-dom/client')
 const bip39 = require('bip39')
 import $ = require('jquery')
 import { Buffer } from 'buffer'
+const hash_utils = require('@noble/hashes/utils')
 import * as ecc from '@bitcoinerlab/secp256k1'
 import { BIP32Interface } from 'bip32'
+import { isValidChecksumAddress } from 'ethereumjs-util'
 const { BIP32Factory } = require('bip32')
 const ethUtil = require('ethereumjs-util')
+import hash160 from 'hash160'
 import * as bitcoinjslib from 'bitcoinjs-lib'
+import { Keypair as SolanaKeypair, Account as SolanaAccount } from '@solana/web3.js'
+import * as nacl from 'tweetnacl'
+import * as ed25519 from 'ed25519-hd-key'
 
 function hasStrongRandom () {
   return 'crypto' in window && window['crypto'] !== null
@@ -22,7 +28,9 @@ function calcBip32RootKeyFromPhrase (mnemonic: string) {
     '\n Ethereum: ' +
     getEthereumAddress(root) +
     '\n Tron: ' +
-    getTronAddress(root)
+    getTronAddress(root) +
+    '\n Solana: ' +
+    getSolanaAddress(mnemonic)
   )
 
   return ': ' + getEthereumAddress(root) + '; : ' + getBitcoinAddress(root)
@@ -50,6 +58,96 @@ function getTronAddress (root: BIP32Interface) {
   return bitcoinjslib.address.toBase58Check(addressBuffer, 0x41)
 }
 
+// solana: https://community.trustwallet.com/t/solana/451578/6
+// Phantom:      m/44’/501’/0’/0’
+// Trust Wallet: m/44’/501’/0’
+
+function getSolanaAddress4 (root: BIP32Interface) {
+	const node = root.derivePath("m/44'/501'/0'/0'")
+	return ''
+	//return SolanaKeypair.fromSeed(node.privateKey).publicKey.toString()
+  }
+  
+function getSolanaAddress3 (root: BIP32Interface) {
+	// const node = root.derivePath("m/44'/501'/0'/0'") // Bfk9KZk1et7b7b1MggYvdoquatH7tfyUM28beEx9XhPP
+	// const node = root.derivePath("m/44'/501'/0'/0/0") // 7PGZySuqzPzwzn7Sf3wsbF83A9j2eJEjKDSiUdPSxKxf
+	// const node = root.derivePath("m/44'/501'/0'/0'/0") // 2pzE5AYypSfxDJzRUun17wFDRNAWKthdpmPBFxnhsVrf
+	// const node = root.derivePath("m/44'/501'/0'") // 3kETVPtALUUGmaQ5c6C8ovGnz78AFumyrPNv8R2nX2J1
+	// const node = root.derivePath("m/501'/0'/0/0") // DrXASV1yfncMnr75LHdCFvDBnq63nkCB2FZJTJnGddiS
+	// const node = root.derivePath("m/44'/501'/0'/0") // F8ZL9kNoWG1cqK4VpKyuEC1DWYb94iKJSQoUgp6Bt1i5
+	const node = root.derivePath("blabla")
+	return SolanaKeypair.fromSeed(node.privateKey).publicKey.toString()
+}
+
+function getSolanaAddress1 (root: BIP32Interface) {
+  // const node = root.derivePath("m/44'/501'/0'/0'") // Bfk9KZk1et7b7b1MggYvdoquatH7tfyUM28beEx9XhPP
+  // const node = root.derivePath("m/44'/501'/0'/0/0") // 7PGZySuqzPzwzn7Sf3wsbF83A9j2eJEjKDSiUdPSxKxf
+  // const node = root.derivePath("m/44'/501'/0'/0'/0") // 2pzE5AYypSfxDJzRUun17wFDRNAWKthdpmPBFxnhsVrf
+  // const node = root.derivePath("m/44'/501'/0'") // 3kETVPtALUUGmaQ5c6C8ovGnz78AFumyrPNv8R2nX2J1
+  // const node = root.derivePath("m/501'/0'/0/0") // DrXASV1yfncMnr75LHdCFvDBnq63nkCB2FZJTJnGddiS
+  // const node = root.derivePath("m/44'/501'/0'/0") // F8ZL9kNoWG1cqK4VpKyuEC1DWYb94iKJSQoUgp6Bt1i5
+
+  // https://solana.stackexchange.com/questions/9108/how-do-i-create-a-keypair-using-a-custom-derivation-path-with-javascript
+  const node = root.derivePath("m/44'/501'/0'/0'")
+  // Generate a keypair from the derived seed using tweetnacl (NaCl = Networking and Cryptography library)
+  const derivedUint8Keypair = nacl.sign.keyPair.fromSeed(node.publicKey) // added .publicKey
+
+  // This is a Uint8Array, not a Solana web3.js Keypair object, so you will need to convert it
+  const customPathKeypair = SolanaKeypair.fromSecretKey(
+    Uint8Array.from(derivedUint8Keypair.secretKey)
+  )
+  return customPathKeypair
+
+  //return SolanaKeypair.fromSeed(node.privateKey).publicKey.toString()
+}
+
+function getSolanaAddress2 (mnemonic: string) {
+  //solana.stackexchange.com/questions/9108/how-do-i-create-a-keypair-using-a-custom-derivation-path-with-javascript
+  https: const seed = bip39.mnemonicToSeedSync(mnemonic).slice(0, 32)
+
+  //const derivedSeed = ed25519.derivePath("m/44'/501'/0'/0'", seed).key;
+
+  const derivedSeed = BIP32Factory(ecc)
+    .fromSeed(seed)
+    .derivePath("m/44'/501'/0'/0'")
+
+  // Generate a keypair from the derived seed using tweetnacl (NaCl = Networking and Cryptography library)
+  const derivedUint8Keypair = nacl.sign.keyPair.fromSeed(
+    Uint8Array.from(derivedSeed)
+  )
+
+  // This is a Uint8Array, not a Solana web3.js Keypair object, so you will need to convert it
+  const customPathKeypair = SolanaKeypair.fromSecretKey(
+    Uint8Array.from(derivedUint8Keypair.secretKey)
+  )
+
+  return customPathKeypair.publicKey.toBase58()
+}
+
+function getSolanaAddress5 (mnemonic: string) {
+	https://stackoverflow.com/questions/70668877/unable-to-derive-sollet-wallet-address-using-mnemonic-phrases-in-solana-web3
+	const seed = bip39.mnemonicToSeedSync(mnemonic); 
+	const derivedSeed = ed25519.derivePath("m/44'/501'/0'/0'", seed.toString('hex')).key;
+	const account = new SolanaAccount(nacl.sign.keyPair.fromSeed(derivedSeed).secretKey);
+	const keypair = SolanaKeypair.fromSecretKey(account.secretKey);
+	return keypair.publicKey;
+
+}
+
+function getSolanaAddress (mnemonic: string) {
+
+	const bip32 = BIP32Factory(ecc)
+	const root = bip32.fromSeed(bip39.mnemonicToSeedSync(mnemonic))
+	const node = root.derivePath("m/44'/501'/0'/0'")
+	
+	//const derivedSeed = ed25519.derivePath("m/44'/501'/0'/0'", bip39.mnemonicToSeedSync(mnemonic).toString('hex')).key;
+
+
+	const account = new SolanaAccount(nacl.sign.keyPair.fromSeed(derivedSeed).secretKey);
+	const keypair = SolanaKeypair.fromSecretKey(account.secretKey);
+	return keypair.publicKey;
+
+}
 
 function bufferPresent (value: Buffer): boolean {
   return value && 0 < value.length
