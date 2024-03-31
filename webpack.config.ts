@@ -17,6 +17,7 @@ module.exports = function (env: string) {
 	return {
 		entry: './src/index.tsx',
 		output: { path: dist_dir, filename: 'bundle.js' },
+		devtool: 'source-map',
 		module: {
 			rules: [
 				{
@@ -29,9 +30,11 @@ module.exports = function (env: string) {
 		resolve: {
 			extensions: ['.tsx', '.ts', '.js'],
 			fallback: {
-				buffer: require.resolve('buffer/'),
-
+				buffer: require.resolve('buffer/')
 			},
+			alias: {
+				stream: 'stream-browserify'
+			}
 		},
 		plugins: [
 			new HtmlWebpackPlugin({

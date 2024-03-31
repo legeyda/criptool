@@ -4,38 +4,40 @@ const bip39 = require('bip39')
 import $ = require('jquery')
 import { Buffer } from 'buffer'
 import * as ecc from '@bitcoinerlab/secp256k1'
-import { BIP32Interface } from 'bip32'
 const { BIP32Factory } = require('bip32')
 const ethUtil = require('ethereumjs-util')
 import * as bitcoinjslib from 'bitcoinjs-lib'
+import { Keypair as SolanaKeypair } from '@solana/web3.js'
+import * as ed25519 from 'ed25519-hd-key'
+
+const bip32 = BIP32Factory(ecc)
 
 function hasStrongRandom () {
   return 'crypto' in window && window['crypto'] !== null
 }
 
 function calcBip32RootKeyFromPhrase (mnemonic: string) {
-  const bip32 = BIP32Factory(ecc)
-  const root = bip32.fromSeed(bip39.mnemonicToSeedSync(mnemonic))
+  const root = bip39.mnemonicToSeedSync(mnemonic)
   return (
     'Bitcoin: ' +
     getBitcoinAddress(root) +
-    '\n Ethereum: ' +
+    '\nEthereum: ' +
     getEthereumAddress(root) +
-    '\n Tron: ' +
-    getTronAddress(root)
+    '\nTron: ' +
+    getTronAddress(root) +
+    '\nSolana: ' +
+    getSolanaAddress(root)
   )
-
-  return ': ' + getEthereumAddress(root) + '; : ' + getBitcoinAddress(root)
 }
 
-function getBitcoinAddress (root: BIP32Interface) {
-  const node = root.derivePath("m/84'/0'/0'/0/0") // = key
+function getBitcoinAddress (seed: Buffer) {
+  const node = bip32.fromSeed(seed).derivePath("m/84'/0'/0'/0/0")
   const { address } = bitcoinjslib.payments.p2wpkh({ pubkey: node.publicKey })
   return address
 }
 
-function getEthereumAddress (root: BIP32Interface) {
-  const node = root.derivePath("m/44'/60'/0'/0/0")
+function getEthereumAddress (seed: Buffer) {
+  const node = bip32.fromSeed(seed).derivePath("m/44'/60'/0'/0/0")
   var ethPubkey = ethUtil.importPublic(node.publicKey)
   var addressBuffer = ethUtil.publicToAddress(ethPubkey)
   var hexAddress = addressBuffer.toString('hex')
@@ -43,11 +45,17 @@ function getEthereumAddress (root: BIP32Interface) {
   return ethUtil.addHexPrefix(checksumAddress)
 }
 
-function getTronAddress (root: BIP32Interface) {
-  const node = root.derivePath("m/44'/195'/0'/0/0")
+function getTronAddress (seed: Buffer) {
+  const node = bip32.fromSeed(seed).derivePath("m/44'/195'/0'/0/0")
   var ethPubkey = ethUtil.importPublic(node.publicKey)
   var addressBuffer = ethUtil.publicToAddress(ethPubkey)
   return bitcoinjslib.address.toBase58Check(addressBuffer, 0x41)
+}
+
+function getSolanaAddress (seed: Buffer) {
+  const trustwallet = SolanaKeypair.fromSeed(ed25519.derivePath("m/44'/501'/0'",    seed.toString('hex')).key).publicKey
+  const solflare    = SolanaKeypair.fromSeed(ed25519.derivePath("m/44'/501'/0'/0'", seed.toString('hex')).key).publicKey
+  return trustwallet + ' (truswallet), ' + solflare + ' (solflare)';
 }
 
 
@@ -186,7 +194,7 @@ class CriptoolApp extends React.Component {
     return (
       <div>
         <SeedPhrase value={this.state.phrase} onChange={this.onSeedChange} />
-        <p>{root}</p>
+        <pre>{root}</pre>
       </div>
     )
   }
