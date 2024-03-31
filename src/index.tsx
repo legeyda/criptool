@@ -3,33 +3,26 @@ const ReactDOM = require('react-dom/client')
 const bip39 = require('bip39')
 import $ = require('jquery')
 import { Buffer } from 'buffer'
-const hash_utils = require('@noble/hashes/utils')
 import * as ecc from '@bitcoinerlab/secp256k1'
 import { BIP32Interface } from 'bip32'
-import { isValidChecksumAddress } from 'ethereumjs-util'
 const { BIP32Factory } = require('bip32')
 const ethUtil = require('ethereumjs-util')
-import hash160 from 'hash160'
 import * as bitcoinjslib from 'bitcoinjs-lib'
-import { Keypair as SolanaKeypair } from '@solana/web3.js'
 
 function hasStrongRandom () {
   return 'crypto' in window && window['crypto'] !== null
 }
 
-function calcBip32RootKeyFromPhrase (phrase: string) {
+function calcBip32RootKeyFromPhrase (mnemonic: string) {
   const bip32 = BIP32Factory(ecc)
-  const root = bip32.fromSeed(bip39.mnemonicToSeedSync(phrase))
+  const root = bip32.fromSeed(bip39.mnemonicToSeedSync(mnemonic))
   return (
     'Bitcoin: ' +
     getBitcoinAddress(root) +
     '\n Ethereum: ' +
     getEthereumAddress(root) +
-	'\n Tron: ' +
-    getTronAddress(root) +
-	'\n Solana: ' +
-    getSolanaAddress(root)
-	
+    '\n Tron: ' +
+    getTronAddress(root)
   )
 
   return ': ' + getEthereumAddress(root) + '; : ' + getBitcoinAddress(root)
@@ -51,16 +44,12 @@ function getEthereumAddress (root: BIP32Interface) {
 }
 
 function getTronAddress (root: BIP32Interface) {
-	const node = root.derivePath("m/44'/195'/0'/0/0")
-	var ethPubkey = ethUtil.importPublic(node.publicKey)
-	var addressBuffer = ethUtil.publicToAddress(ethPubkey)
-	return bitcoinjslib.address.toBase58Check(addressBuffer, 0x41)
+  const node = root.derivePath("m/44'/195'/0'/0/0")
+  var ethPubkey = ethUtil.importPublic(node.publicKey)
+  var addressBuffer = ethUtil.publicToAddress(ethPubkey)
+  return bitcoinjslib.address.toBase58Check(addressBuffer, 0x41)
 }
 
-function getSolanaAddress (root: BIP32Interface) {
-	const node = root.derivePath("m/44'/501'/0'/0'")
-	return SolanaKeypair.fromSeed(node.publicKey).publicKey.toString()
-}
 
 function bufferPresent (value: Buffer): boolean {
   return value && 0 < value.length
