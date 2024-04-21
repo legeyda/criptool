@@ -9,6 +9,7 @@ const ethUtil = require('ethereumjs-util')
 import * as bitcoinjslib from 'bitcoinjs-lib'
 import { Keypair as SolanaKeypair } from '@solana/web3.js'
 import * as ed25519 from 'ed25519-hd-key'
+const QRCode = require('qrcode')
 
 const bip32 = BIP32Factory(ecc)
 
@@ -53,15 +54,15 @@ function getTronAddress (seed: Buffer) {
 }
 
 function getSolanaAddress (seed: Buffer) {
-  const trustwallet = SolanaKeypair.fromSeed(ed25519.derivePath("m/44'/501'/0'",    seed.toString('hex')).key).publicKey
-  const solflare    = SolanaKeypair.fromSeed(ed25519.derivePath("m/44'/501'/0'/0'", seed.toString('hex')).key).publicKey
-  return trustwallet + ' (truswallet), ' + solflare + ' (solflare)';
+  const trustwallet = SolanaKeypair.fromSeed(
+    ed25519.derivePath("m/44'/501'/0'", seed.toString('hex')).key
+  ).publicKey
+  const solflare = SolanaKeypair.fromSeed(
+    ed25519.derivePath("m/44'/501'/0'/0'", seed.toString('hex')).key
+  ).publicKey
+  return trustwallet + ' (truswallet), ' + solflare + ' (solflare)'
 }
 
-
-function bufferPresent (value: Buffer): boolean {
-  return value && 0 < value.length
-}
 
 function SeedPhrase ({
   value,
@@ -70,7 +71,7 @@ function SeedPhrase ({
   value: string
   onChange: (_: string) => void
 }) {
-  const DEFAULT_LENGTH = 15
+  const DEFAULT_LENGTH = 24
 
   const [valueState, setValueState] = React.useState('')
   const [lengthState, setLengthState] = React.useState(DEFAULT_LENGTH)
@@ -185,21 +186,29 @@ function SeedPhrase ({
 }
 
 class CriptoolApp extends React.Component {
-  state = { phrase: '' }
+  state = { phrase: '', publicText: '<empty>', publicQR: '' }
   render () {
-    const root: string = this.state.phrase
-      ? calcBip32RootKeyFromPhrase(this.state.phrase)
-      : '<empty>'
-
     return (
       <div>
         <SeedPhrase value={this.state.phrase} onChange={this.onSeedChange} />
-        <pre>{root}</pre>
+        <pre>{this.state.publicText}</pre>
+        <img src={this.state.publicQR} />
       </div>
     )
   }
   onSeedChange = (value: string) => {
-    this.setState({ phrase: value })
+    const publicText: string = this.state.phrase
+      ? calcBip32RootKeyFromPhrase(this.state.phrase)
+      : '<empty>'
+    this.setState({ phrase: value, publicText: publicText })
+    const that = this
+    QRCode.toDataURL(publicText, function (err, url) {
+      if (err) {
+        console.log('error generation qr: ' + err)
+      } else {
+        that.setState({ publicQR: url })
+      }
+    })
   }
 }
 
