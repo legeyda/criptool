@@ -16,8 +16,13 @@ module.exports = function (env: string) {
 	const dist_dir = path.resolve(__dirname, 'production' == env ? 'dist' : 'build')
 	return {
 		entry: './src/index.tsx',
-		output: { path: dist_dir, filename: 'bundle.js' },
-		devtool: 'source-map',
+		output: { 
+			path: dist_dir,
+			filename: 'bundle.js',
+			publicPath: '' 
+		},
+		devtool: 'inline-source-map',
+		devServer: {},
 		module: {
 			rules: [
 				{
@@ -33,7 +38,8 @@ module.exports = function (env: string) {
 				buffer: require.resolve('buffer/')
 			},
 			alias: {
-				stream: 'stream-browserify'
+				stream: 'stream-browserify',
+				criptool: path.resolve(__dirname, "./src"),
 			}
 		},
 		plugins: [
@@ -48,11 +54,16 @@ module.exports = function (env: string) {
 
 			}),
 			new webpack.DefinePlugin({
-				// process: define_process,
+				 // process: define_process,
 				'process.env.NODE_DEBUG': JSON.stringify(process.env.NODE_DEBUG),
 				'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV),
 				'process.env.DEBUG': JSON.stringify(process.env.DEBUG),
 			}),
+			new webpack.IgnorePlugin({
+				checkResource(resource) {
+					return /.*\/wordlists\/(?!english).*\.json/.test(resource)
+				}
+			})
 		],
 	}
 };

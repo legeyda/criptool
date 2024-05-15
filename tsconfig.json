@@ -1,6 +1,6 @@
 {
 	"compilerOptions": {
-		"outDir": "./build/",
+		"outDir": "./build2/",
 		"noEmitOnError": true,
 		"target": "es5",
 		"watch": true,
