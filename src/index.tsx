@@ -5,77 +5,137 @@ const QRCode = require('qrcode')
 
 const criplib = require('criptool/crypto')
 
+function useLazyState<T> (defaultValue: T): [T, (T) => boolean] {
+  const [value, reactSetter] = React.useState<T>(defaultValue)
+  return [
+    value,
+    function (newValue: T) {
+      if (value != newValue) {
+        reactSetter(newValue)
+        return true
+      }
+      return false
+    }
+  ]
+}
 
-
-function SeedPhrase ({
+function Mnemonic ({
   value,
   onChange
 }: {
   value: string
   onChange: (_: string) => void
 }) {
-  const DEFAULT_LENGTH = 24
+  const [lengthState, setLengthState] = useLazyState(24)
+  const [validHalfsState, setValidHalfsState] = useLazyState(false)
+  const [valueState, setValueState] = useLazyState('')
 
-  const [valueState, setValueState] = React.useState('')
-  const [lengthState, setLengthState] = React.useState(DEFAULT_LENGTH)
-  const [validHalfsState, setValidHalfsState] = React.useState(false)
+  const [generationParametersErrorMessage, valueErrorMessage] = evaluateState()
 
-  const [valueError, maybeValidValue, _] = value
-    ? criplib.normalizeMnemonic(value)
-    : ['', '', 0]
-  if (valueError) {
-    throw new Error('SeedPhrase: invalid value: ' + valueError) // todo needed?
+  function evaluateState (): [string, string] {
+    if (value) {
+      const [valueError, normalizedValue, valueLength, valueValidHalfs] =
+        criplib.normalizeMnemonic(value)
+      if(valueLength) {
+        setLengthState(valueLength)
+      }
+      if (valueError) {
+        setValueState(value)
+        return [getGenerationParametersErrorMessage(), valueError]
+      } else {
+        setValueState(value)
+        return ['', '']
+      }
+    } else {
+      return [getGenerationParametersErrorMessage(), getValueErrorMessage()]
+    }
   }
 
-  function emitChangeEvent (newValue: string) {
-    if (!onChange) {
-      return
+  function getGenerationParametersErrorMessage (): string {
+    return criplib.generateMnemonic(lengthState, validHalfsState)[0]
+  }
+
+  function getValueErrorMessage (): string {
+    if (valueState) {
+      const [valueStateError, normalizedValueState] = criplib.normalizeMnemonic(
+        valueState,
+        lengthState,
+        validHalfsState
+      )
+      if (valueStateError) {
+        return 'wrong mnemonic: ' + valueStateError
+      }
     }
-    if (value == newValue) {
-      return // todo needed?
-    }
-    const [newValueError, validNewValue, _] = criplib.normalizeMnemonic(newValue)
-    if (newValueError) {
-      setValueState(newValue)
-      onChange('')
-    } else {
-      setValueState('')
-      onChange(validNewValue)
-    }
+    return ''
+  }
+
+  function fireChangeIfValid (
+    mnemonic: string,
+    length: number,
+    validHalfsRequired: boolean
+  ) {
+    const [error, normalizedMnemonic, mnemonicLength, mnemonicValidHalfs] =
+      criplib.normalizeMnemonic(mnemonic, length, validHalfsRequired)
+      fireChangeEvent(!error ? normalizedMnemonic : '')
   }
 
   function onLengthChange (event) {
-    setLengthState(parseInt(event.target.value, 10))
+    const newLength = parseInt(event.target.value, 10)
+    setLengthState(newLength)
+    fireChangeIfValid(valueState, newLength, validHalfsState)
+  }
+
+  function onValidHalfsChange (event) {
+    const newValidHalfs = event.target.checked
+    setValidHalfsState(newValidHalfs)
+    fireChangeIfValid(valueState, lengthState, newValidHalfs)
   }
 
   function onValueChange (event) {
     const newValue = event.target.value
-    emitChangeEvent(newValue)
+    setValueState(newValue)
+    fireChangeIfValid(newValue, lengthState, validHalfsState)
   }
 
-  function onValidHalfsChange (event) {
-    setValidHalfsState(event.target.checked)
+  function fireChangeEvent (newValue: string) {
+    if (!onChange) {
+      return
+    }
+    // const [error, normalizedNewValue, mnemonicLength, mnemonicValidHalfs] =
+    //   criplib.normalizeMnemonic(value)
+    // if(!error) {
+    //   fireChangeEvent(normalizedMnemonic)
+    // }
+
+    if (newValue == value) {
+      return
+    }
+    onChange(newValue)
   }
 
   function onGenerateClick (_) {
-    emitChangeEvent('')
-    if (!criplib.hasStrongRandom()) {
-      throw new Error('This browser does not support strong randomness')
+    if (generationParametersErrorMessage) {
+      fireChangeEvent('')
+      setValueState(generationParametersErrorMessage)
     }
-    const [err, mnemonic, _length] = criplib.generateMnemonic(lengthState, validHalfsState)
-    if(!err) {
-      emitChangeEvent(mnemonic)
+    const [err, newValue, _length] = criplib.generateMnemonic(
+      lengthState,
+      validHalfsState
+    )
+    if (err) {
+      fireChangeEvent('')
+      setValueState(err)
     } else {
-      emitChangeEvent(err)
+      fireChangeEvent(newValue)
+      setValueState(newValue)
     }
-
   }
 
   return (
     <div>
       <div>
         <select value={lengthState} onChange={onLengthChange}>
-          {[12, 15, 18, 21, 24].map(len => {
+          {criplib.validMnemonicLengths.map(len => {
             return (
               <option key={len} value={len}>
                 {len}
@@ -86,52 +146,69 @@ function SeedPhrase ({
       </div>
       <div>
         <textarea
-          value={valueState || maybeValidValue}
+          value={valueState}
           onChange={onValueChange}
           rows={5}
           cols={100}
         />
-        <p>{criplib.normalizeMnemonic(valueState || maybeValidValue)[0]}</p>
+        <div>{valueErrorMessage && <p>{valueErrorMessage}</p>}</div>
+        <p>{criplib.normalizeMnemonic(valueState)[1]}</p>
       </div>
       <div>
-        <p>Valid halfs</p>
-        <input
-          type='checkbox'
-          checked={validHalfsState}
-          onChange={onValidHalfsChange}
-        ></input>
+        <label>
+          <input
+            type='checkbox'
+            checked={validHalfsState}
+            onChange={onValidHalfsChange}
+          ></input>
+          Valid halfs
+        </label>
       </div>
       <div>
-        <button onClick={onGenerateClick}>Generate</button>
+        <button
+          onClick={onGenerateClick}
+          disabled={generationParametersErrorMessage ? true : false}
+        >
+          Generate
+        </button>
+        <div>
+          {generationParametersErrorMessage && (
+            <p>{generationParametersErrorMessage}</p>
+          )}
+        </div>
       </div>
     </div>
   )
 }
 
 class CriptoolApp extends React.Component {
-  state = { phrase: '', publicText: '<empty>', publicQR: '' }
+  state = { phrase: '', publicText: '', publicQR: '' }
   render () {
+    if (this.state.phrase && !this.state.publicText) {
+      const publicText = criplib.deriveAddresses(this.state.phrase)
+      this.setState({ publicText: publicText })
+      const that = this
+      setInterval(function () {
+        QRCode.toDataURL(publicText, function (err, url) {
+          if (err) {
+            console.log('error generation qr: ' + err)
+          } else if (publicText == that.state.publicText && that.state.publicQR != url) {
+            that.setState({ publicQR: url })
+          }
+        })
+      })
+    }
+
     return (
       <div>
-        <SeedPhrase value={this.state.phrase} onChange={this.onSeedChange} />
-        <pre>{this.state.publicText}</pre>
-        <img src={this.state.publicQR} />
+        <Mnemonic value={this.state.phrase} onChange={this.onSeedChange} />
+        <pre>{this.state.publicText || '<empty>'}</pre>
+        {this.state.publicQR && <img src={this.state.publicQR} />}
       </div>
     )
   }
   onSeedChange = (value: string) => {
-    const publicText: string = this.state.phrase
-      ? criplib.deriveAddresses(this.state.phrase)
-      : '<empty>'
-    this.setState({ phrase: value, publicText: publicText })
-    const that = this
-    QRCode.toDataURL(publicText, function (err, url) {
-      if (err) {
-        console.log('error generation qr: ' + err)
-      } else {
-        that.setState({ publicQR: url })
-      }
-    })
+    this.setState({ phrase: value, publicText: '', publicQR: '' })
   }
 }
 

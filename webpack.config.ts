@@ -56,7 +56,7 @@ module.exports = function (env: string) {
 			new webpack.DefinePlugin({
 				 // process: define_process,
 				'process.env.NODE_DEBUG': JSON.stringify(process.env.NODE_DEBUG),
-				'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV),
+				// 'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV),
 				'process.env.DEBUG': JSON.stringify(process.env.DEBUG),
 			}),
 			new webpack.IgnorePlugin({
