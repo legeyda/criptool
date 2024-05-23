@@ -6,6 +6,7 @@ const path = require('path');
 
 
 module.exports = function (env: string) {
+	const development = (env == 'development')
 	const define_process = {
 		emitWarning: true,
 		env: {
@@ -13,6 +14,7 @@ module.exports = function (env: string) {
 		}
 	}
 
+	
 	const dist_dir = path.resolve(__dirname, 'production' == env ? 'dist' : 'build')
 	return {
 		entry: './src/index.tsx',
@@ -21,7 +23,7 @@ module.exports = function (env: string) {
 			filename: 'bundle.js',
 			publicPath: '' 
 		},
-		devtool: 'inline-source-map',
+		devtool: (development ? 'inline-source-map' : 'nosources-source-map'),
 		devServer: {},
 		module: {
 			rules: [

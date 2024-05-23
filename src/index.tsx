@@ -36,7 +36,7 @@ function Mnemonic ({
     if (value) {
       const [valueError, normalizedValue, valueLength, valueValidHalfs] =
         criplib.normalizeMnemonic(value)
-      if(valueLength) {
+      if (valueLength) {
         setLengthState(valueLength)
       }
       if (valueError) {
@@ -76,7 +76,7 @@ function Mnemonic ({
   ) {
     const [error, normalizedMnemonic, mnemonicLength, mnemonicValidHalfs] =
       criplib.normalizeMnemonic(mnemonic, length, validHalfsRequired)
-      fireChangeEvent(!error ? normalizedMnemonic : '')
+    fireChange(!error ? normalizedMnemonic : '')
   }
 
   function onLengthChange (event) {
@@ -97,16 +97,10 @@ function Mnemonic ({
     fireChangeIfValid(newValue, lengthState, validHalfsState)
   }
 
-  function fireChangeEvent (newValue: string) {
+  function fireChange (newValue: string) {
     if (!onChange) {
       return
     }
-    // const [error, normalizedNewValue, mnemonicLength, mnemonicValidHalfs] =
-    //   criplib.normalizeMnemonic(value)
-    // if(!error) {
-    //   fireChangeEvent(normalizedMnemonic)
-    // }
-
     if (newValue == value) {
       return
     }
@@ -115,7 +109,7 @@ function Mnemonic ({
 
   function onGenerateClick (_) {
     if (generationParametersErrorMessage) {
-      fireChangeEvent('')
+      fireChange('')
       setValueState(generationParametersErrorMessage)
     }
     const [err, newValue, _length] = criplib.generateMnemonic(
@@ -123,10 +117,10 @@ function Mnemonic ({
       validHalfsState
     )
     if (err) {
-      fireChangeEvent('')
+      fireChange('')
       setValueState(err)
     } else {
-      fireChangeEvent(newValue)
+      fireChange(newValue)
       setValueState(newValue)
     }
   }
@@ -161,7 +155,7 @@ function Mnemonic ({
             checked={validHalfsState}
             onChange={onValidHalfsChange}
           ></input>
-          Valid halfs
+          Each of the halfs should be valid seed phrase
         </label>
       </div>
       <div>
@@ -192,7 +186,10 @@ class CriptoolApp extends React.Component {
         QRCode.toDataURL(publicText, function (err, url) {
           if (err) {
             console.log('error generation qr: ' + err)
-          } else if (publicText == that.state.publicText && that.state.publicQR != url) {
+          } else if (
+            publicText == that.state.publicText &&
+            that.state.publicQR != url
+          ) {
             that.setState({ publicQR: url })
           }
         })
